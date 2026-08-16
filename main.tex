@@ -1,0 +1,145 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper,openany]{book}
+
+% --- 中文宏包与字体设置 ---
+\usepackage[UTF8,heading=true]{ctex}
+
+% --- 页面与版面设计 ---
+\usepackage[
+    top=2.5cm, bottom=2.5cm,
+    left=2.8cm, right=2.8cm,
+    headheight=14pt,
+    headsep=0.8cm,
+    footskip=1cm
+]{geometry}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\leftmark}
+\fancyhead[LO]{\rightmark}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- 数学公式与符号 ---
+\usepackage{amsmath,amssymb,amsfonts,amsthm,mathtools}
+\usepackage{bm}
+
+% --- 插图与图形 ---
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,calc,patterns,decorations.pathreplacing}
+
+% --- 代码与伪代码 ---
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% --- 颜色与强调框（复刻原书 Box 边栏） ---
+\usepackage[many]{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+% 定义原书特色 Box (边栏补充知识框)
+\newtcolorbox{sidebarbox}[2][]{
+    enhanced,
+    breakable,
+    colback=gray!6,
+    colframe=gray!60!black,
+    fonttitle=\bfseries\sffamily\large,
+    coltitle=black,
+    title={#2},
+    attach boxed title to top left={xshift=5mm, yshift=-2mm},
+    boxed title style={colback=gray!25, colframe=gray!60!black, sharp corners},
+    sharp corners,
+    boxrule=0.8pt,
+    top=4mm,
+    bottom=3mm,
+    left=4mm,
+    right=4mm,
+    before skip=12pt,
+    after skip=12pt,
+    #1
+}
+
+% 定义定理、引理、性质环境
+\theoremstyle{definition}
+\newtheorem{theorem}{定理}[chapter]
+\newtheorem{lemma}{引理}[chapter]
+\newtheorem{property}{性质}[chapter]
+\newtheorem{claim}{断言}[chapter]
+\newtheorem{fact}{事实}[chapter]
+\newtheorem{example}{例}[chapter]
+
+% --- 超链接 ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=blue!80!black
+}
+
+% --- 习题环境设计 ---
+\newenvironment{exercise}[1]{
+    \par\noindent\textbf{1.#1}\quad
+}{\par\addvspace{8pt}}
+
+% --- 书名与作者信息 ---
+\title{\Huge\textbf{算\quad 法\quad 概\quad 论}\\[1.5ex] \Large \textsf{Algorithms}}
+\author{\Large Sanjoy Dasgupta \quad Christos Papadimitriou \quad Umesh Vazirani \\[2ex] \normalsize 译者：精译学术工作组}
+\date{\today}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+
+\chapter*{译者序}
+《算法概论》（\textit{Algorithms}）由著名计算机科学家 Sanjoy Dasgupta、Christos Papadimitriou 和 Umesh Vazirani 联合撰写。本书在加州大学伯克利分校（UC Berkeley）和加州大学圣地亚哥分校（UC San Diego）经过十余年的教学实践打磨，以其引人入胜的叙事脉络、透彻直观的数学阐释和生动的风格享誉全球。
+
+本翻译力求忠实于原文的学术思想与叙事特色，保留作者“以故事线贯穿算法思想”的精髓。所有专业术语均依照经典计算机科学规范译出，并力求在中文语境下保持流畅、精准与自然。
+
+\tableofcontents
+
+\mainmatter
+
+% 序言（章节框架占位）
+\chapter*{第0章\quad 序言 (Prologue)}
+\addcontentsline{toc}{chapter}{第0章\quad 序言}
+\markboth{第0章\quad 序言}{第0章\quad 序言}
+\textit{（此处为整书结构中第 0 章：书籍与算法、斐波那契数列、大 O 记号）}
+
+% 引入第一章
+\include{chapter1}
+
+% 后续章节结构占位（构建完整目录脉络）
+\chapter{分治算法 (Divide-and-conquer algorithms)}
+\textit{（本章待续：整数乘法、递归关系与主定理、归并排序、中位数、矩阵乘法、快速傅里叶变换 FFT 等）}
+
+\chapter{图的分解 (Decompositions of graphs)}
+\textit{（本章待续：为什么使用图、无向图的深度优先搜索、有向图的深度优先搜索、强连通分量等）}
+
+\chapter{图中的路径 (Paths in graphs)}
+\textit{（本章待续：距离与广度优先搜索、边权、Dijkstra 算法、优先队列、负权边与 Bellman-Ford 算法、有向无环图中的最短路径等）}
+
+\chapter{贪心算法 (Greedy algorithms)}
+\textit{（本章待续：最小生成树、Kruskal 算法与并查集、Prim 算法、Huffman 编码、Horn 公式、集合覆盖等）}
+
+\chapter{动态规划 (Dynamic programming)}
+\textit{（本章待续：最长递增子序列、编辑距离、背包问题、矩阵链乘、所有节点对最短路径等）}
+
+\chapter{线性规划与规约 (Linear programming and reductions)}
+\textit{（本章待续：线性规划引论、网络流、二分图匹配、对偶性、零和博弈、单纯形算法等）}
+
+\chapter{NP 完全问题 (NP-complete problems)}
+\textit{（本章待续：搜索问题、NP 完全性、经典规约等）}
+
+\chapter{应对 NP 完全性 (Coping with NP-completeness)}
+\textit{（本章待续：智能穷举搜索、近似算法、局部搜索启发式等）}
+
+\chapter{量子算法 (Quantum algorithms)}
+\textit{（本章待续：量子比特与叠加态、量子傅里叶变换、周期性、量子电路、Shor 质因数分解算法等）}
+
+\backmatter
+
+\end{document}

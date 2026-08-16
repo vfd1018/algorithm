@@ -1,0 +1,174 @@
+\chapter{应对 NP 完全性 (Coping with NP-completeness)}
+
+面对 NP 完全问题，我们在理论上几乎可以断定不存在能够解决该问题所有实例的多项式时间最优算法。然而在现实世界的工程与科研中，这些问题（如旅行商问题、集成电路布线、物流调度）却必须得到解决。面对 NP 完全性的壁垒，算法工程师通常有三条行之有效的应对突围路径：
+\begin{enumerate}
+    \item \textbf{智能穷举搜索 (Intelligent exhaustive search)}：虽然最坏情况仍是指数时间，但通过分支限界与剪枝，在绝大多数实际实例中能极快找到精确最优解；
+    \item \textbf{近似算法 (Approximation algorithms)}：放弃对绝对精确最优解的执念，在多项式时间内求得一个具有严格数学证明保证的“近似最优解”；
+    \item \textbf{局部搜索启发式算法 (Local search heuristics)}：从某个初始解出发，通过在解的邻域内不断做局部改进，在极短时间内找到高质量的经验解。
+\end{enumerate}
+
+\section{智能穷举搜索 (Intelligent exhaustive search)}
+
+\subsection{回溯法 (Backtracking)}
+回溯法将所有可能候选解构造成一棵搜索树。算法自顶向下遍历该树，在每一个子树分支处设立检验机制：如果当前部分解已经不可能扩展为一个合法解，就立刻放弃该分支，\textbf{回溯 (backtrack)} 并剪去整棵子树。
+
+以 3SAT 为例，布尔表达式可以表示为一棵关于变量赋值的二叉树。在每个节点处应用以下剪枝规则（单元子句传播，Unit Clause Propagation）：
+\begin{itemize}
+    \item 若某个子句只剩下一个未赋值的文字，则该文字的取值被唯一确定；
+    \item 若某个子句的所有文字均已被赋值为假，则当前分支发生冲突，立刻剪枝回溯；
+    \item 若某变量在所有子句中仅以正文字（或仅以负文字）出现（纯文字），则可直接将其赋值为真（或假）。
+\end{itemize}
+
+\subsection{分支限界法 (Branch-and-bound)}
+分支限界法用于求解带目标函数的优化问题（如 TSP 或背包问题）。在搜索树的每个内部节点 $u$ 处，不仅检验可行性，还计算该子树所能达到的目标函数最优值的数学界限（例如最小化问题的下界 $\text{lower\_bound}(u)$）。
+
+若当前分支的下界已经超过了算法此前已经找到的某个全局可行解的实际成本（记作 $\text{best\_cost}$），即 $\text{lower\_bound}(u) \ge \text{best\_cost}$，则该分支绝不可能产生更优解，可以安全地将该分支整棵剪去！
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.85, level/.style={sibling distance=50mm/#1}]
+    \node[circle,draw] {根节点}
+        child {node[circle,draw] {$x_1 = 0$}
+            child {node[circle,draw] {$x_2 = 0$}
+                child {node[rectangle,draw,fill=green!20] {可行解}}
+                child {node[rectangle,draw,fill=red!20] {剪枝}}
+            }
+            child {node[circle,draw] {$x_2 = 1$}
+                child {node[rectangle,draw,fill=red!20] {剪枝 (界限超标)}}
+            }
+        }
+        child {node[circle,draw] {$x_1 = 1$}
+            child {node[rectangle,draw,fill=red!20] {不可行 (冲突剪枝)}}
+        };
+\end{tikzpicture}
+\caption{分支限界法搜索树与剪枝示意图}
+\label{fig:branch_and_bound}
+\end{figure}
+
+\section{近似算法 (Approximation algorithms)}
+
+对于最小化问题，若一个多项式时间算法在任何输入实例上输出的解的成本 $C$ 均满足：
+\[
+C \le \alpha \cdot C^* \quad (\alpha \ge 1),
+\]
+其中 $C^*$ 为全局最优解的成本，则称该算法为一个 \textbf{$\alpha$-近似算法 ($\alpha$-approximation algorithm)}。
+
+\subsection*{1. 顶点覆盖的 2-近似算法}
+顶点覆盖问题要求选取最少的顶点覆盖所有边。考虑如下极度简洁的贪心匹配算法：
+
+\begin{tcolorbox}[colback=white,colframe=gray!50!black,title={\textbf{算法}\quad 顶点覆盖的 2-近似算法}]
+\begin{algorithmic}[1]
+\State $C = \emptyset$
+\State $E' = E$
+\While{$E'$ 非空}
+    \State 从 $E'$ 中任意选取一条边 $\{u, v\}$
+    \State 将两个端点 $u$ 和 $v$ 同时加入 $C$
+    \State 从 $E'$ 中删除所有与 $u$ 或 $v$ 相连的边
+\EndWhile
+\State \Return $C$
+\end{algorithmic}
+\end{tcolorbox}
+
+\begin{theorem}
+上述算法返回的集合 $C$ 是一个顶点覆盖，且大小满足 $|C| \le 2 \cdot |C^*|$（即 2-近似）。
+\end{theorem}
+
+\begin{proof}
+设算法在循环中总共选取了 $k$ 条互不相交的边 $M = \{e_1, \dots, e_k\}$（极大匹配）。根据算法逻辑，$|C| = 2k$。因为 $M$ 中的任意两条边都不共享公共顶点，任何合法的顶点覆盖 $C^*$ 为了覆盖这 $k$ 条互相独立的边，必须在每条边上至少选取一个端点，因此必有 $|C^*| \ge k$。两式结合即得：
+\[
+|C| = 2k \le 2 \cdot |C^*|.
+\]
+\end{proof}
+
+\subsection*{2. 满足三角不等式的 TSP 的 1.5-近似算法 (Christofides 算法)}
+若两点间距离满足三角不等式 $d(u, w) \le d(u, v) + d(v, w)$：
+\begin{enumerate}
+    \item 构造图的最小生成树 $T$（其权重必定 $\le \text{TSP}^*$）；
+    \item 找出 $T$ 中所有奇数度的顶点集合 $O$（必为偶数个顶点）；
+    \item 在 $O$ 诱导的完全子图上求最小权完美匹配 $M$（其权重 $\le \frac{1}{2} \text{TSP}^*$）；
+    \item 将 $T$ 与 $M$ 的边合并构成欧拉图，求出欧拉回路，并通过捷径跳过重复访问的顶点形成哈密顿回路。
+\end{enumerate}
+最终求得的旅行回路长度至多为最优回路的 $1.5$ 倍（1.5-近似）！
+
+\subsection*{3. 背包问题的全多项式时间近似方案 (FPTAS)}
+通过对物品的价值进行缩放和离散化取整，动态规划算法可以在 $O(n^3 / \epsilon)$ 时间内求出误差不超过 $(1 - \epsilon)$ 倍最优价值的近似解。
+
+\section{局部搜索启发式算法 (Local search heuristics)}
+
+局部搜索的核心思想是：在解空间中定义“邻域”（Neighborhood），从某个任意初始解开始，不断在当前解的邻近解中搜索能够使目标函数改善的更优解（爬山法或梯度下降）。
+
+\subsection*{1. TSP 的 2-opt 与 3-opt 局部搜索}
+在旅行商回路中，断开任意 2 条相交交叉的边，并尝试将它们以另一种无交叉的方式重新连接。如果重连后的回路总长度缩短，则接受该新解。反复执行直到回路达到“2-最优”（局部极小值）。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.85, >=latex]
+    % 交叉路径
+    \begin{scope}[shift={(0,0)}]
+        \node[circle,draw,inner sep=1.5pt] (A) at (0,2) {A};
+        \node[circle,draw,inner sep=1.5pt] (B) at (3,0) {B};
+        \node[circle,draw,inner sep=1.5pt] (C) at (0,0) {C};
+        \node[circle,draw,inner sep=1.5pt] (D) at (3,2) {D};
+        \draw[thick,red] (A)--(B); \draw[thick,red] (C)--(D);
+        \draw[dashed] (A)--(D) (C)--(B);
+        \node at (1.5,-0.8) {交叉状态 (代价高)};
+    \end{scope}
+
+    \draw[->,very thick] (3.8,1) -- (4.8,1);
+
+    % 解开交叉
+    \begin{scope}[shift={(5.5,0)}]
+        \node[circle,draw,inner sep=1.5pt] (A) at (0,2) {A};
+        \node[circle,draw,inner sep=1.5pt] (B) at (3,0) {B};
+        \node[circle,draw,inner sep=1.5pt] (C) at (0,0) {C};
+        \node[circle,draw,inner sep=1.5pt] (D) at (3,2) {D};
+        \draw[thick,blue] (A)--(C); \draw[thick,blue] (D)--(B);
+        \node at (1.5,-0.8) {2-opt 翻转解开交叉};
+    \end{scope}
+\end{tikzpicture}
+\caption{TSP 的 2-opt 局部搜索反转优化}
+\label{fig:two_opt}
+\end{figure}
+
+\subsection*{2. 模拟退火 (Simulated Annealing)}
+为了跳出局部最优陷阱，模拟退火借鉴了冶金学中固体退火退温的物理过程：在温度 $T$ 下，如果邻域新解更优则无条件接受；若新解更差（成本增加了 $\Delta E > 0$），则以 Metropolis 概率玻尔兹曼因子：
+\[
+P = e^{-\Delta E / T}
+\]
+依概率接受该恶化解。随着温度 $T$ 的逐渐降低，算法从前期的全局广泛探索逐渐平稳收敛到高质量的全局近似最优解。
+
+\newpage
+\section*{习题 (Exercises)}
+\addcontentsline{toc}{section}{习题}
+
+\begin{exercise}{9.1}
+在图着色问题中分析纯贪心着色启发式算法的最坏情况近似比。
+\end{exercise}
+
+\begin{exercise}{9.2}
+集合覆盖的贪心算法与对偶拟阵贪心近似分析。
+\end{exercise}
+
+\begin{exercise}{9.3}
+证明如果一般的 TSP（不满足三角不等式）存在多项式时间的常数近似比算法，则必有 $\text{P} = \text{NP}$。
+\end{exercise}
+
+\begin{exercise}{9.4}
+最大割问题（Max Cut）的 0.5-近似贪心翻转算法设计与证明。
+\end{exercise}
+
+\begin{exercise}{9.5}
+基于线性规划松弛（LP Relaxation）与随机舍入（Randomized Rounding）求解 MAX-SAT。
+\end{exercise}
+
+\begin{exercise}{9.6}
+$k$-中心聚类问题（$k$-Center Clustering）的 2-近似算法设计。
+\end{exercise}
+
+\begin{exercise}{9.7}
+背包问题的贪心价值密度排序算法及其 0.5-近似比证明。
+\end{exercise}
+
+\begin{exercise}{9.8}
+模拟退火在组合优化中的冷却调度表（Cooling Schedule）参数敏感度分析。
+\end{exercise}

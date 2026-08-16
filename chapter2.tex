@@ -1,0 +1,495 @@
+\chapter{分治算法 (Divide-and-conquer algorithms)}
+
+分治（Divide-and-conquer，分而治之）策略通过以下三个步骤来解决问题：
+\begin{enumerate}
+    \item \textbf{分解 (Divide)}：将原问题划分为若干个子问题，这些子问题是原问题规模更小的同类实例；
+    \item \textbf{解决 (Conquer)}：递归地求解这些子问题；
+    \item \textbf{合并 (Combine)}：适当地组合子问题的解，构造出原问题的解。
+\end{enumerate}
+
+实际的计算工作被零敲碎打地分散在三个不同环节：将问题划分为子问题；在递归的最底层（当子问题小到可以直接求解时）；以及将各个部分解拼装在一起。这些环节由算法的核心递归结构统一串联与协调。
+
+作为入门示例，我们将看到该技术如何带来一种全新的数字乘法算法——其效率远超我们在小学所学的方法！
+
+\section{乘法 (Multiplication)}
+
+数学家卡尔·弗里德里希·高斯（Carl Friedrich Gauss，1777--1855）曾注意到：两个复数的乘积
+\[
+(a + bi)(c + di) = ac - bd + (bc + ad)i
+\]
+初看似乎需要 4 次实数乘法，但实际上只需 3 次乘法即可完成：即计算 $ac$、$bd$ 以及 $(a + b)(c + d)$，因为：
+\[
+bc + ad = (a + b)(c + d) - ac - bd.
+\]
+在我们的大 $O$ 思维方式下，将乘法次数从 4 次减少到 3 次似乎只是微不足道的雕虫小技。然而，当这种改进被\textbf{递归应用}时，其微小的提升将产生巨大的放大效应。
+
+让我们离开复数，看看这一思想如何助力常规整数乘法。假设 $x$ 和 $y$ 是两个 $n$ 位整数，为方便起见假设 $n$ 是 2 的幂（一般情况几乎没有差别）。作为相乘 $x$ 与 $y$ 的第一步，将它们各自拆分为长度为 $n/2$ 位的左右两半：
+\begin{align*}
+x &= x_L x_R = 2^{n/2} x_L + x_R \\
+y &= y_L y_R = 2^{n/2} y_L + y_R.
+\end{align*}
+例如，若 $x = 10110110_2$（下标 2 表示二进制），则 $x_L = 1011_2$，$x_R = 0110_2$，且 $x = 1011_2 \times 2^4 + 0110_2$。$x$ 与 $y$ 的乘积可以重写为：
+\[
+xy = (2^{n/2} x_L + x_R)(2^{n/2} y_L + y_R) = 2^n x_L y_L + 2^{n/2} (x_L y_R + x_R y_L) + x_R y_R.
+\]
+我们将通过右边的表达式来计算 $xy$。加法以及乘以 2 的幂次（本质上只是左移操作）仅耗费线性时间。关键的操作是 4 次 $n/2$ 位整数的乘法：$x_L y_L$、$x_L y_R$、$x_R y_L$ 和 $x_R y_R$；我们可以通过 4 次递归调用来处理它们。因此，我们相乘 $n$ 位数的方法首先递归调用计算这 4 对 $n/2$ 位数的乘积（4 个规模减半的子问题），然后在 $O(n)$ 时间内计算上述表达式。记 $T(n)$ 为输入规模为 $n$ 时的总运行时间，我们得到递推关系式：
+\[
+T(n) = 4T(n/2) + O(n).
+\]
+我们很快就会看到求解此类方程的通用策略。眼下，这个特定递推式解得 $O(n^2)$，与传统的小学乘法耗时完全相同。虽然我们得到了一种全新的算法，但在效率上尚未取得任何突破。如何加速我们的方法？
+
+此时高斯的技巧应运而生。虽然 $xy$ 的表达式表面上需要 4 次 $n/2$ 位乘法，但正如前文所述，仅需 3 次乘法即可：$x_L y_L$、$x_R y_R$ 以及 $(x_L + x_R)(y_L + y_R)$，因为：
+\[
+x_L y_R + x_R y_L = (x_L + x_R)(y_L + y_R) - x_L y_L - x_R y_R.
+\]
+由此得到的算法如图 \ref{fig:dnc_mult} 所示，其运行时间改进为：\footnote{实际上递推式应写为 $T(n) \le 3T(n/2 + 1) + O(n)$，因为 $(x_L + x_R)$ 和 $(y_L + y_R)$ 的长度可能达到 $n/2 + 1$ 位。此处采用的形式更便于处理，且蕴含完全相同的大 $O$ 运行时间。}
+\[
+T(n) = 3T(n/2) + O(n).
+\]
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[colback=white,colframe=gray!50!black,title={\textbf{图 2.1}\quad 整数乘法的分治算法 (Karatsuba 乘法)}]
+\begin{algorithmic}[1]
+\Function{multiply}{$x, y$}
+    \State \textbf{Input:} $n$ 位正整数 $x$ 和 $y$
+    \State \textbf{Output:} 它们的乘积
+    \If{$n = 1$} \Return $xy$ \EndIf
+    \State $x_L, x_R = x \text{ 的左半部分 } \lceil n/2 \rceil \text{ 位与右半部分 } \lfloor n/2 \rfloor \text{ 位}$
+    \State $y_L, y_R = y \text{ 的左半部分 } \lceil n/2 \rceil \text{ 位与右半部分 } \lfloor n/2 \rfloor \text{ 位}$
+    \State $P_1 = \Call{multiply}{x_L, y_L}$
+    \State $P_2 = \Call{multiply}{x_R, y_R}$
+    \State $P_3 = \Call{multiply}{x_L + x_R, y_L + y_R}$
+    \State \Return $P_1 \times 2^n + (P_3 - P_1 - P_2) \times 2^{n/2} + P_2$
+\EndFunction
+\end{algorithmic}
+\end{tcolorbox}
+\label{fig:dnc_mult}
+\end{figure}
+
+关键在于：常数因子从 4 到 3 的缩减发生在该递归树的\textbf{每一个层次}上，这种复合叠加效应带来了极其显著的降维打击，最终将时间上界降低到了 $O(n^{\log_2 3}) \approx O(n^{1.59})$。
+
+该运行时间可以通过观察算法的递归调用模式得出，这些调用形成一棵树状结构（图 \ref{fig:mult_recursion_tree}）。我们来理解这棵树的形态：在递归的每个连续层次上，子问题的规模均减半。在第 $\log_2 n$ 层，子问题规模缩减为 1，递归随之终止。因此，树的高度为 $\log_2 n$。分支因子为 3——每个问题递归产生 3 个较小的问题——其结果是在树的第 $k$ 层深度上有 $3^k$ 个子问题，每个子问题的规模为 $n/2^k$。
+
+对于每个子问题，在划分生成子问题以及合并其解的过程中花费线性工作量。因此，在树的第 $k$ 层深度上所花费的总时间为：
+\[
+3^k \times O\left(\frac{n}{2^k}\right) = \left(\frac{3}{2}\right)^k \times O(n).
+\]
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.85]
+    \node[draw,rectangle] (top) at (0,0) {$10110110 \times 01100011$ (规模 $n$)};
+    \node[draw,rectangle] (l1) at (-4,-1.5) {$1011 \times 0110$};
+    \node[draw,rectangle] (l2) at (0,-1.5) {$0010 \times 0011$};
+    \node[draw,rectangle] (l3) at (4,-1.5) {$1101 \times 1001$};
+    \draw[->] (top) -- (l1);
+    \draw[->] (top) -- (l2);
+    \draw[->] (top) -- (l3);
+    \node at (0,-2.5) {$\dots \dots$ 共 $\log_2 n$ 层递归 $\dots \dots$};
+\end{tikzpicture}
+\caption{分治整数乘法的递归树结构}
+\label{fig:mult_recursion_tree}
+\end{figure}
+
+在最顶层（$k = 0$），计算量为 $O(n)$。在最底层（$k = \log_2 n$），计算量为 $O(3^{\log_2 n})$，它可以被重写为 $O(n^{\log_2 3})$（你想明白为什么了吗？）。在这两个端点之间，每层的工作量按几何级数以公比 $3/2$ 迅速增长。任何递增几何级数之和在相差常数因子的意义下仅仅等于该级数的最后一项（参见习题 0.2）。因此，总运行时间为 $O(n^{\log_2 3})$，大约是 $O(n^{1.59})$。
+
+如果没有高斯的技巧，递归树具有相同的高度，但分支因子为 4。此时将会有 $4^{\log_2 n} = n^2$ 个叶节点，运行时间至少为 $O(n^2)$。在分治算法中，子问题的个数直接转化为递归树的分支因子；这一系数的微小改变将对运行时间产生翻天覆地的影响。
+
+工程实践注记：在实际实现中，通常没有必要一路递归到底直到 1 个比特。对于绝大多数处理器而言，16 位或 32 位的乘法是单条硬件指令即可完成的原子操作，因此一旦数字缩减到该硬件字长范围内，就应该直接交由处理器的内置指令执行。
+
+最后，回到那个永恒的问题：我们能否做得更好？事实证明，基于另一个极其重要的分治算法——\textbf{快速傅里叶变换 (FFT)}，存在更快速的数字乘法算法，这将在第 2.6 节中详细阐明。
+
+\section{递归关系与主定理 (Recurrence relations)}
+
+分治算法通常遵循一种通用的范式：它们通过递归求解 $a$ 个规模为 $n/b$ 的子问题来攻克规模为 $n$ 的问题，随后在 $O(n^d)$ 时间内合并这些结果（其中常数 $a > 0, b > 1, d \ge 0$）。因此它们的运行时间可以由方程 $T(n) = aT(n/b) + O(n^d)$ 刻画。我们接下来推导该通用递推关系的闭式解，从而使我们无需在每个新问题中都显式求解一遍。
+
+\begin{theorem}[\textbf{主定理 (Master theorem)}]
+若对某些常数 $a > 0, b > 1$ 以及 $d \ge 0$，有递推关系式 $T(n) = aT(n/b) + O(n^d)$，则：
+\[
+T(n) = \begin{cases}
+O(n^d), & \text{若 } d > \log_b a \\
+O(n^d \log n), & \text{若 } d = \log_b a \\
+O(n^{\log_b a}), & \text{若 } d < \log_b a.
+\end{cases}
+\]
+\end{theorem}
+这一定理直接给出了我们未来可能遇到的大多数分治过程的运行时间。
+
+\begin{proof}
+为便于证明，不妨假设 $n$ 是 $b$ 的整数次幂。这绝不会对最终的渐近界产生实质影响——毕竟 $n$ 距离 $b$ 的某个幂次最多相差一个乘法因子 $b$（参见习题 2.2）——并且允许我们忽略 $n/b$ 取整带来的细微效应。
+
+其次，注意到子问题的规模在递归的每一层都缩小 $b$ 倍，因此在 $\log_b n$ 层后必然达到基本情况。这就是递归树的高度。其分支因子为 $a$，因此树的第 $k$ 层由 $a^k$ 个子问题组成，每个子问题的规模为 $n/b^k$。在该层所完成的总工作量为：
+\[
+a^k \times O\left(\left(\frac{n}{b^k}\right)^d\right) = O(n^d) \times \left(\frac{a}{b^d}\right)^k.
+\]
+随着 $k$ 从 0（根节点）递增至 $\log_b n$（叶节点），这些数值构成了一个公比为 $a/b^d$ 的几何级数。在大 $O$ 记号下求解此类几何级数之和非常简单（参见习题 0.2），归结为三种情况：
+\begin{enumerate}
+    \item \textbf{公比小于 1}（即 $d > \log_b a$）：级数严格递减，其和由第一项决定，为 $O(n^d)$。
+    \item \textbf{公比大于 1}（即 $d < \log_b a$）：级数严格递增，其和由最后一项决定，为 $O(n^{\log_b a})$：
+    \[
+    n^d \left(\frac{a}{b^d}\right)^{\log_b n} = n^d \frac{a^{\log_b n}}{(b^{\log_b n})^d} = a^{\log_b n} = a^{(\log_a n)(\log_b a)} = n^{\log_b a}.
+    \]
+    \item \textbf{公比恰好等于 1}（即 $d = \log_b a$）：此时级数的所有 $O(\log n)$ 项均相等，每项均为 $O(n^d)$，总和为 $O(n^d \log n)$。
+\end{enumerate}
+这三种情况直接对应于定理陈述中的三种分支结论。
+\end{proof}
+
+\begin{sidebarbox}{二分搜索 (Binary search)}
+分治算法的终极典型代表当然是\textbf{二分搜索}：为了在包含按升序排列的关键字 $z[0, 1, \dots, n-1]$ 的大文件中查找目标关键字 $k$，我们首先将 $k$ 与中间项 $z[n/2]$ 进行比较，并根据比较结果递归地在前半部分 $z[0 \dots n/2 - 1]$ 或后半部分 $z[n/2 \dots n-1]$ 中继续查找。此时的递推式为 $T(n) = T(n/2) + O(1)$，对应于 $a = 1, b = 2, d = 0$。代入主定理，由于 $\log_2 1 = 0 = d$，立即得到熟悉的解：运行时间仅为 $O(\log n)$。
+\end{sidebarbox}
+
+\section{归并排序 (Mergesort)}
+
+对一个数字列表进行排序的问题非常自然地契合分治策略：将列表分为两半，递归地对每一半进行排序，然后将两个已排序的子列表合并在一起。
+
+\begin{tcolorbox}[colback=white,colframe=gray!50!black,title={\textbf{算法}\quad 归并排序 (\texttt{mergesort})}]
+\begin{algorithmic}[1]
+\Function{mergesort}{$a[1 \dots n]$}
+    \State \textbf{Input:} 一个包含 $n$ 个数的数组 $a[1 \dots n]$
+    \State \textbf{Output:} 该数组升序排序后的版本
+    \If{$n > 1$}
+        \State \Return \Call{merge}{\Call{mergesort}{$a[1 \dots \lfloor n/2 \rfloor]$}, \Call{mergesort}{$a[\lfloor n/2 \rfloor + 1 \dots n]$}}
+    \Else
+        \State \Return $a$
+    \EndIf
+\EndFunction
+\end{algorithmic}
+\end{tcolorbox}
+
+只要指定了正确的合并（merge）子过程，该算法的正确性是显而易见的。给定两个已排序的数组 $x[1 \dots k]$ 和 $y[1 \dots l]$，如何高效地将它们合并为单个有序数组 $z[1 \dots k + l]$？答案是：$z$ 的第一个元素必然是 $x[1]$ 和 $y[1]$ 中较小的那个，随后递归构造 $z$ 的剩余部分：
+
+\begin{tcolorbox}[colback=white,colframe=gray!50!black,title={\textbf{算法}\quad 合并子过程 (\texttt{merge})}]
+\begin{algorithmic}[1]
+\Function{merge}{$x[1 \dots k], y[1 \dots l]$}
+    \If{$k = 0$} \Return $y[1 \dots l]$ \EndIf
+    \If{$l = 0$} \Return $x[1 \dots k]$ \EndIf
+    \If{$x[1] \le y[1]$}
+        \State \Return $x[1] \circ \Call{merge}{x[2 \dots k], y[1 \dots l]}$
+    \Else
+        \State \Return $y[1] \circ \Call{merge}{x[1 \dots k], y[2 \dots l]}$
+    \EndIf
+\EndFunction
+\end{algorithmic}
+\end{tcolorbox}
+
+这里 $\circ$ 表示数组拼接连接。该合并过程在每次递归调用中完成常数级工作量，总运行时间为 $O(k + l)$。因此合并是线性的，归并排序的总运行时间满足：
+\[
+T(n) = 2T(n/2) + O(n) \implies T(n) = O(n \log n).
+\]
+
+\begin{sidebarbox}{排序算法的 $n \log n$ 下界 (An $n \log n$ lower bound for sorting)}
+排序算法可以描绘为决策树。对于包含 $n$ 个元素的数组，基于比较的排序算法每一步通过比较两个元素的大小来分支，最终到达叶节点，叶节点标记为 $\{1, 2, \dots, n\}$ 的某种排列。由于 $n$ 个元素共有 $n!$ 种可能的排列，且每种排列都必须作为某个叶节点出现，因此这棵二叉决策树至少拥有 $n!$ 个叶节点。
+
+由于深度为 $d$ 的二叉树最多拥有 $2^d$ 个叶节点，树的深度（即最坏情况下的比较次数）必定至少为 $\log_2(n!)$。
+利用斯特林公式或简单放缩 $n! \ge (n/2)^{n/2}$，两边取对数可知：
+\[
+\log(n!) \ge \frac{n}{2} \log \frac{n}{2} = \Omega(n \log n).
+\]
+因此，任何基于比较的排序算法在最坏情况下都必须执行 $\Omega(n \log n)$ 次比较，归并排序在渐近意义上是最优的！
+\end{sidebarbox}
+
+\section{中位数 (Medians)}
+
+一组数字的中位数（Median）是其第 50 百分位数：恰好有一半的数字比它大，一半比它小。例如 $[45, 1, 10, 30, 25]$ 的中位数是 25。如果列表长度为偶数，中间有两个可选元素，我们约定取其中较小的那一个。
+
+计算 $n$ 个数字的中位数很简单：先排序即可。但排序需要 $O(n \log n)$ 时间，而我们渴望线性时间 $O(n)$。在寻找递归解法时，处理一个更一般化的问题往往反而更容易——因为它提供了更强大的递归归纳步。在我们的场景中，所考虑的推广问题是\textbf{选择问题 (Selection)}：
+
+\begin{tcolorbox}[colback=white,colframe=gray!50!black]
+\textbf{选择问题 (Selection)} \\
+\textbf{输入：} 数字列表 $S$；整数 $k$ \\
+\textbf{输出：} $S$ 中第 $k$ 小的元素
+\end{tcolorbox}
+
+例如若 $k = 1$，求的是最小值；若 $k = \lfloor |S|/2 \rfloor$，求的就是中位数。
+
+\subsection*{用于选择问题的随机分治算法}
+对于任意选定的枢轴元（pivot）$v$，将列表 $S$ 划分为三类：小于 $v$ 的元素（$S_L$）、等于 $v$ 的元素（$S_v$）以及大于 $v$ 的元素（$S_R$）。
+搜索可以立即缩小到这三个子列表之一：
+\[
+\text{selection}(S, k) = \begin{cases}
+\text{selection}(S_L, k), & \text{若 } k \le |S_L| \\
+v, & \text{若 } |S_L| < k \le |S_L| + |S_v| \\
+\text{selection}(S_R, k - |S_L| - |S_v|), & \text{若 } k > |S_L| + |S_v|.
+\end{cases}
+\]
+
+三个子列表可以在线性时间内求出（甚至可以就地划分，参见习题 2.15）。我们随后在对应的子列表上递归。
+如何选取 $v$？如果每次都能完美折半（$|S_L|, |S_R| \approx \frac{1}{2}|S|$），递推式为 $T(n) = T(n/2) + O(n) = O(n)$。但这需要我们预先知道中位数！一种极其简单的替代方案是：\textbf{从 $S$ 中完全随机选取 $v$}。
+
+\begin{lemma}
+一枚均匀硬币平均需要抛掷 2 次才会出现正面。
+\end{lemma}
+
+如果 $v$ 落在数组的第 25 到第 75 百分位区间内（我们称其为“好的”枢轴元），则子列表的大小至多为原数组的 $3/4$。由于任何列表中有一半的元素都是好的枢轴元，平均只需随机选取 2 次就能选到一个好的枢轴元。因此在期望意义下，数组规模缩小到 $3/4$ 满足：
+\[
+T(n) \le T(3n/4) + O(n) \implies T(n) = O(n).
+\]
+该算法在期望意义下以线性时间返回正确结果！
+
+\begin{sidebarbox}{Unix 中的 \texttt{sort} 命令与快速排序 (Quicksort)}
+对比排序与中位数查找算法，会发现它们在分治结构上互为镜像：归并排序盲目划分但在合并时精雕细琢；而快速选择（及快速排序）在划分时精心分类，递归完成后无需任何合并操作。快速排序（Quicksort）在最坏情况下耗时 $\Theta(n^2)$，但平均运行时间为 $O(n \log n)$，且常数因子极小，在工业界应用极广。
+\end{sidebarbox}
+
+\section{矩阵乘法 (Matrix multiplication)}
+
+两个 $n \times n$ 矩阵 $X$ 和 $Y$ 的乘积是另一个 $n \times n$ 矩阵 $Z = XY$，其第 $(i, j)$ 项定义为：
+\[
+Z_{ij} = \sum_{k=1}^n X_{ik} Y_{kj}.
+\]
+经典算法计算 $n^2$ 个元素，每个元素耗时 $O(n)$，总耗时为 $O(n^3)$。1969 年，德国数学家沃尔克·斯特拉森（Volker Strassen）提出了基于分治思想的革命性算法。
+
+将矩阵分块为四个 $(n/2) \times (n/2)$ 的子块：
+\[
+X = \begin{pmatrix} A & B \\ C & D \end{pmatrix}, \quad Y = \begin{pmatrix} E & F \\ G & H \end{pmatrix}.
+\]
+传统分块需要计算 8 次子矩阵乘法：$AE, BG, AF, BH, CE, DG, CF, DH$，递推式为 $T(n) = 8T(n/2) + O(n^2) = O(n^3)$。
+
+斯特拉森发现了一种极其精妙的代数恒等式，仅需 \textbf{7 次乘法}：
+\begin{align*}
+P_1 &= A(F - H) & P_5 &= (A + D)(E + H) \\
+P_2 &= (A + B)H & P_6 &= (B - D)(G + H) \\
+P_3 &= (C + D)E & P_7 &= (A - C)(E + F) \\
+P_4 &= D(G - E) & &
+\end{align*}
+乘积矩阵组合为：
+\[
+XY = \begin{pmatrix} P_5 + P_4 - P_2 + P_6 & P_1 + P_2 \\ P_3 + P_4 & P_1 + P_5 - P_3 - P_7 \end{pmatrix}.
+\]
+新的递推关系式为：
+\[
+T(n) = 7T(n/2) + O(n^2) \implies T(n) = O(n^{\log_2 7}) \approx O(n^{2.81}).
+\]
+
+\section{快速傅里叶变换 (The fast Fourier transform)}
+
+两个 $d$ 次多项式 $A(x) = \sum_{i=0}^d a_i x^i$ 与 $B(x) = \sum_{i=0}^d b_i x^i$ 相乘，其乘积多项式 $C(x) = A(x)B(x)$ 的系数为卷积形式：
+\[
+c_k = \sum_{i=0}^k a_i b_{k-i}.
+\]
+直接计算全部 $2d+1$ 个系数需要 $\Theta(d^2)$ 时间。能否更快地完成多项式乘法？
+
+\begin{fact}
+一个 $d$ 次多项式被其在任意 $d + 1$ 个互异点处的取值唯一确定。
+\end{fact}
+
+这给出了多项式的两种表示法：
+\begin{enumerate}
+    \item \textbf{系数表示法 (Coefficient representation)}：$a_0, a_1, \dots, a_d$；
+    \item \textbf{点值表示法 (Value representation)}：$A(x_0), A(x_1), \dots, A(x_d)$。
+\end{enumerate}
+
+在点值表示下，两个多项式相乘仅需将对应点处的值相乘，耗时仅为线性时间 $O(n)$！因此总体思路为：
+\begin{center}
+系数表示 $\xrightarrow{\text{求值 (Evaluation)}} $ 点值表示 $\xrightarrow{\text{逐点相乘}} $ 乘积的点值表示 $\xrightarrow{\text{插值 (Interpolation)}} $ 乘积的系数表示
+\end{center}
+
+\begin{sidebarbox}{为什么多项式乘法至关重要？ (Why multiply polynomials?)}
+首先，大整数乘法本质上等价于多项式乘法（令 $x = 2$ 并处理进位）。更重要的是，多项式乘法是\textbf{信号处理 (Signal processing)}的核心基石。线性时不变系统的响应输出恰好就是输入信号与系统单位脉冲响应的离散卷积。
+\end{sidebarbox}
+
+\subsection*{分治求值与复数单位根}
+将多项式按奇偶次幂拆分：
+\[
+A(x) = A_e(x^2) + x A_o(x^2).
+\]
+如果求值点成对出现为相反数对 $\pm x_i$，则：
+\begin{align*}
+A(x_i) &= A_e(x_i^2) + x_i A_o(x_i^2) \\
+A(-x_i) &= A_e(x_i^2) - x_i A_o(x_i^2).
+\end{align*}
+为了让平方后的点在下一层递归中依然能够成对出现，我们引入复数域上的 $n$ 次单位根：$\omega = e^{2\pi i / n}$。复数单位根序列 $1, \omega, \omega^2, \dots, \omega^{n-1}$ 具有完美的周期性与对称平方性质：
+\[
+\omega^{n/2 + j} = -\omega^j \quad \text{且} \quad (\omega^j)^2 = (\omega^2)^j = (e^{2\pi i / (n/2)})^j.
+\]
+由此得到的快速傅里叶变换（FFT）算法仅需 $O(n \log n)$ 时间！
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[colback=white,colframe=gray!50!black,title={\textbf{图 2.7}\quad 快速傅里叶变换 (FFT 多项式表述)}]
+\begin{algorithmic}[1]
+\Function{FFT}{$A, \omega$}
+    \State \textbf{Input:} 次数 $\le n-1$ 的多项式系数向量 $A$，主 $n$ 次单位根 $\omega$（$n$ 为 2 的幂）
+    \State \textbf{Output:} 点值表示 $A(\omega^0), A(\omega^1), \dots, A(\omega^{n-1})$
+    \If{$\omega = 1$} \Return $A(1)$ \EndIf
+    \State 将 $A(x)$ 表示为 $A_e(x^2) + x A_o(x^2)$
+    \State $s = \Call{FFT}{A_e, \omega^2}$
+    \State $s' = \Call{FFT}{A_o, \omega^2}$
+    \For{$j = 0 \text{ to } n-1$}
+        \State $A(\omega^j) = s[j \bmod (n/2)] + \omega^j s'[j \bmod (n/2)]$
+    \EndFor
+    \State \Return $A(\omega^0), \dots, A(\omega^{n-1})$
+\EndFunction
+\end{algorithmic}
+\end{tcolorbox}
+\label{fig:fft_alg}
+\end{figure}
+
+\subsection*{插值与矩阵求逆}
+从线性代数视角看，求值过程等价于范德蒙德矩阵（Vandermonde matrix）$M_n(\omega)$ 与系数向量相乘。
+由于矩阵 $M_n(\omega)$ 的列向量两两正交：
+\[
+M_n(\omega) M_n(\omega)^* = n I_n \implies M_n(\omega)^{-1} = \frac{1}{n} M_n(\omega^{-1}).
+\]
+因此，\textbf{插值运算完全等价于将 $\omega$ 替换为其逆元 $\omega^{-1}$ 后再次执行一次标准的 FFT，最后将结果除以 $n$}：
+\[
+\text{Coefficients} = \frac{1}{n} \Call{FFT}{\text{Values}, \omega^{-1}}.
+\]
+这极为优雅地解决了多项式乘法问题，总耗时仅为 $O(n \log n)$！
+
+\newpage
+\section*{习题 (Exercises)}
+\addcontentsline{toc}{section}{习题}
+
+\begin{exercise}{2.1}
+使用整数乘法的分治算法计算两个二进制整数 $10011011$ 和 $10111010$ 的乘积。
+\end{exercise}
+
+\begin{exercise}{2.2}
+证明对于任意正整数 $n$ 和任意基数 $b$，在区间 $[n, bn]$ 内必存在 $b$ 的某个整数次幂。
+\end{exercise}
+
+\begin{exercise}{2.3}
+通过展开递推关系式求解下列递推方程：
+\begin{enumerate}
+    \item[(a)] $T(n) = 3T(n/2) + O(n)$ 的第 $k$ 步通项是什么？代入什么 $k$ 值可得最终解？
+    \item[(b)] 求解未被主定理覆盖的递推式 $T(n) = T(n - 1) + O(1)$。
+\end{enumerate}
+\end{exercise}
+
+\begin{exercise}{2.4}
+比较以下三种算法的运行时间（大 $O$ 记号），你会选择哪一个？
+\begin{itemize}
+    \item 算法 A：将问题划分为 5 个规模减半的子问题，在线性时间内合并；
+    \item 算法 B：递归求解 2 个规模为 $n-1$ 的子问题，在常数时间内合并；
+    \item 算法 C：划分为 9 个规模为 $n/3$ 的子问题，在 $O(n^2)$ 时间内合并。
+\end{itemize}
+\end{exercise}
+
+\begin{exercise}{2.5}
+求解下列递推关系并给出各式的 $\Theta$ 渐近界：
+(a) $T(n) = 2T(n/3) + 1$;\quad (b) $T(n) = 5T(n/4) + n$;\quad (c) $T(n) = 7T(n/7) + n$;\quad (d) $T(n) = 9T(n/3) + n^2$;\quad (e) $T(n) = 8T(n/2) + n^3$;\quad (f) $T(n) = 49T(n/25) + n^{3/2} \log n$;\quad (g) $T(n) = T(n - 1) + 2$;\quad (h) $T(n) = T(n - 1) + n^c$ ($c \ge 1$);\quad (i) $T(n) = T(n - 1) + c^n$ ($c > 1$);\quad (j) $T(n) = 2T(n - 1) + 1$;\quad (k) $T(n) = T(\sqrt{n}) + 1$。
+\end{exercise}
+
+\begin{exercise}{2.6}
+线性时不变系统具有如下脉冲响应：在 $[0, t_0]$ 上为常数 $1/t_0$。
+(a) 用语言描述该系统的作用；(b) 对应的多项式是什么？
+\end{exercise}
+
+\begin{exercise}{2.7}
+$n$ 次复数单位根之和是多少？当 $n$ 为奇数时它们的乘积是多少？当 $n$ 为偶数时呢？
+\end{exercise}
+
+\begin{exercise}{2.8}
+快速傅里叶变换练习：
+(a) 求序列 $(1, 0, 0, 0)$ 的 FFT；(b) 求序列 $(1, 0, 1, -1)$ 的 FFT。
+\end{exercise}
+
+\begin{exercise}{2.9}
+多项式 FFT 乘法练习：
+(a) 利用 FFT 相乘 $x + 1$ 与 $x^2 + 1$；(b) 利用 FFT 相乘 $1 + x + 2x^2$ 与 $2 + 3x$。
+\end{exercise}
+
+\begin{exercise}{2.10}
+求满足 $p(1) = 2, p(2) = 1, p(3) = 0, p(4) = 4, p(5) = 0$ 的唯一 4 次多项式，以系数形式写出答案。
+\end{exercise}
+
+\begin{exercise}{2.11}
+证明矩阵分块乘法性质：若 $X = \begin{pmatrix} A & B \\ C & D \end{pmatrix}, Y = \begin{pmatrix} E & F \\ G & H \end{pmatrix}$，则 $XY = \begin{pmatrix} AE + BG & AF + BH \\ CE + DG & CF + DH \end{pmatrix}$。
+\end{exercise}
+
+\begin{exercise}{2.12}
+分析程序输出行数：函数 $f(n)$ 在 $n > 1$ 时打印一行并两次调用 $f(n/2)$。写出递推式并求解。
+\end{exercise}
+
+\begin{exercise}{2.13}
+真二叉树（Full binary tree）指所有节点要么有 0 个要么有 2 个子节点的二叉树。令 $B_n$ 为包含 $n$ 个顶点的真二叉树数目。
+(a) 画图求出 $B_3, B_5, B_7$；(b) 推导 $B_n$ 的递推关系；(c) 归纳证明 $B_n = 2^{\Omega(n)}$。
+\end{exercise}
+
+\begin{exercise}{2.14}
+给定包含 $n$ 个元素的数组，展示如何在 $O(n \log n)$ 时间内消除数组中的所有重复元素。
+\end{exercise}
+
+\begin{exercise}{2.15}
+展示如何就地（in place，不分配额外辅助内存）实现选择算法中的 \texttt{split} 划分操作。
+\end{exercise}
+
+\begin{exercise}{2.16}
+给定一个无限数组 $A[\cdot]$，前 $n$ 个单元包含已排序的整数，其余单元填充为 $\infty$。在不知道 $n$ 的情况下，设计在 $O(\log n)$ 时间内查找元素 $x$ 的算法。
+\end{exercise}
+
+\begin{exercise}{2.17}
+给定互异整数升序数组 $A[1 \dots n]$，设计分治算法在 $O(\log n)$ 时间内判断是否存在下标 $i$ 使得 $A[i] = i$。
+\end{exercise}
+
+\begin{exercise}{2.18}
+证明任何仅通过元素比较来在有序数组中查找元素 $x$ 的算法，必须至少执行 $\Omega(\log n)$ 步操作。
+\end{exercise}
+
+\begin{exercise}{2.19}
+$k$ 路归并：给定 $k$ 个已排序数组，每个数组包含 $n$ 个元素。
+(a) 逐个归并的时间复杂度是多少？(b) 给出利用分治更高效的解法。
+\end{exercise}
+
+\begin{exercise}{2.20}
+证明整数数组 $x[1 \dots n]$ 可以在 $O(n + M)$ 时间内完成排序，其中 $M = \max_i x_i - \min_i x_i$（计数排序）。为什么此时不受 $\Omega(n \log n)$ 下界限制？
+\end{exercise}
+
+\begin{exercise}{2.21}
+中位数与均值的极值性质：
+(a) 证明中位数 $\mu_1$ 最小化 $\sum_i |x_i - \mu|$；(b) 证明均值 $\mu_2$ 最小化 $\sum_i (x_i - \mu)^2$；(c) 证明最小化 $\max_i |x_i - \mu|$ 的 $\mu_\infty$ 可以在 $O(n)$ 时间内求出。
+\end{exercise}
+
+\begin{exercise}{2.22}
+给定两个大小分别为 $m$ 和 $n$ 的有序列表，给出在 $O(\log m + \log n)$ 时间内求两者并集中第 $k$ 小元素的算法。
+\end{exercise}
+
+\begin{exercise}{2.23}
+主元素问题（Majority element）：若数组中超过半数元素相同，则称其包含主元素。
+(a) 给出 $O(n \log n)$ 分治算法；(b) 给出 $O(n)$ 线性时间配对消除算法。
+\end{exercise}
+
+\begin{exercise}{2.24}
+快速排序分析：(a) 写出伪代码；(b) 证明最坏情况运行时间为 $\Omega(n^2)$；(c) 列出期望运行时间递推式并证明其为 $O(n \log n)$。
+\end{exercise}
+
+\begin{exercise}{2.25}
+十进制转二进制快速分治算法：分析将 $10^n$ 以及任意 $n$ 位十进制数转换为二进制的分治算法与运行时间。
+\end{exercise}
+
+\begin{exercise}{2.26}
+对 $n$ 位整数求平方在渐近复杂度上是否比相乘两个 $n$ 位整数严格更快？请给出论证。
+\end{exercise}
+
+\begin{exercise}{2.27}
+矩阵求平方与乘法的等价性：证明如果能在 $O(n^c)$ 时间内计算 $n \times n$ 矩阵的平方，则任意两个 $n \times n$ 矩阵均可在 $O(n^c)$ 时间内相乘。
+\end{exercise}
+
+\begin{exercise}{2.28}
+阿达马矩阵（Hadamard matrices）与快速变换：证明阶数为 $n = 2^k$ 的阿达马矩阵与向量乘积 $H_k v$ 可以在 $O(n \log n)$ 步内计算完成。
+\end{exercise}
+
+\begin{exercise}{2.29}
+霍纳法则（Horner's rule）与多项式求值：分析其加法与乘法次数。
+\end{exercise}
+
+\begin{exercise}{2.30}
+模算术中的数论变换（NTT）：展示如何在模 7 意义下定义 $\omega$ 并实现多项式快速卷积。
+\end{exercise}
+
+\begin{exercise}{2.31}
+基于分治的二进制最大公约数算法（Stein 算法）：推导并分析其复杂度。
+\end{exercise}
+
+\begin{exercise}{2.32}
+平面最近点对问题（Closest pair）：设计并分析 $O(n \log n)$ 分治算法。
+\end{exercise}
+
+\begin{exercise}{2.33}
+随机化矩阵乘法验证（Freivalds 算法）：设计 $O(n^2)$ 蒙特卡洛算法验证 $AB = C$。
+\end{exercise}
+
+\begin{exercise}{2.34}
+线性局部 3SAT 问题：每个子句包含的变量下标相距不超过 10，给出线性时间求解算法。
+\end{exercise}
